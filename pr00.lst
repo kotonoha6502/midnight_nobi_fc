@@ -1,0 +1,299 @@
+#[1]   pr00.asm
+   10           0000              .rsset $00
+   11           0000      tmp                     .rs 9
+   12           0009      cnt                     .rs 1
+   13                     
+   14           000A      hscr            .rs 1
+   15           000B      vscr            .rs 1
+   16                     
+   17                     
+   18                     
+   19           000C      pad                     .rs 1
+   20           000D      pad_trg         .rs 1
+   21                     
+   22           0770              .rsset $0770
+   23           0770      fHideScreen     .rs 1   
+   24                     
+   25           0771      ppu1            .rs 1
+   26           0772      ppu2            .rs 1
+   27                             
+   28           0773      rnd                     .rs 7
+   29                     
+   30                             
+   31           0000              .bank 0
+   32           8000              .org $8000
+   33                             
+   34           0001              .bank 1
+   35           A000              .org $A000
+   36                             
+   37           0002              .bank 2
+   38           C000              .org $C000
+   39                             
+   40           0003              .bank 3
+   41           E000              .org $E000
+   42                             
+#[2]   _func.h
+   43                             .include "_func.h"
+    1                     ;MMCのバンク切り替え実行
+    2                     ;Yに切り替えモード、Aにセットするバンクを格納してから呼び出すこと。
+    3  03:E000            MMCBankSet
+    4  03:E000  8C 00 80          sty $8000
+    5  03:E003  8D 01 80          sta $8001
+    6  03:E006  60                rts
+    7                     
+    8  03:E007            initializer
+    9  03:E007  A2 07             ldx #$07
+   10  03:E009  A9 00             lda #$00
+   11  03:E00B  85 06             sta <tmp+6
+   12  03:E00D            .0
+   13  03:E00D  E0 01             cpx #$01
+   14  03:E00F  F0 09             beq .1
+   15  03:E011  86 07             stx <tmp+7
+   16  03:E013            .2
+   17  03:E013  91 06             sta [tmp+6],y
+   18  03:E015  88                dey
+   19  03:E016  C0 FF             cpy #$FF
+   20  03:E018  D0 F9             bne .2
+   21  03:E01A            .1
+   22  03:E01A  CA                dex
+   23  03:E01B  10 F0             bpl .0
+   24  03:E01D  60                rts
+   25                     
+   26  03:E01E            ClearBGBuffer
+   27  03:E01E  A9 00             lda #$00
+   28  03:E020  A8                tay
+   29  03:E021            .rep
+   30  03:E021  99 00 03          sta $0300,y
+   31  03:E024  C8                iny
+   32  03:E025  C0 40             cpy #$40
+   33  03:E027  D0 F8             bne .rep
+   34  03:E029  60                rts
+   35                             
+   36  03:E02A            acsvram_main:
+   37  03:E02A  8D 06 20          sta $2006
+   38  03:E02D  C8                iny
+   39  03:E02E  B1 00             lda [tmp],y
+   40  03:E030  8D 06 20          sta $2006
+   41  03:E033  C8                iny
+   42  03:E034  B1 00             lda [tmp],y
+   43  03:E036  0A                asl a
+   44  03:E037  48                pha
+   45  03:E038  AD 71 07          lda ppu1
+   46  03:E03B  09 04             ora #$04
+   47  03:E03D  B0 02             bcs .setppu
+   48  03:E03F  29 FB             and #$FB
+   49  03:E041            .setppu
+   50  03:E041  20 B8 E0          jsr setppuctl
+   51  03:E044  68                pla
+   52  03:E045  4A                lsr a
+   53  03:E046  AA                tax
+   54  03:E047            .rep
+   55  03:E047  C8                iny
+   56  03:E048  B1 00             lda [tmp],y
+   57  03:E04A  8D 07 20          sta $2007
+   58  03:E04D  CA                dex
+   59  03:E04E  D0 F7             bne .rep
+   60  03:E050  98                tya
+   61  03:E051  38                sec
+   62  03:E052  65 00             adc <tmp
+   63  03:E054  85 00             sta <tmp
+   64  03:E056  A9 00             lda #$00
+   65  03:E058  65 01             adc <tmp+1
+   66  03:E05A  85 01             sta <tmp+1
+   67  03:E05C  A9 3F             lda #$3F
+   68  03:E05E  8D 06 20          sta $2006
+   69  03:E061  A9 00             lda #$00
+   70  03:E063  8D 06 20          sta $2006
+   71  03:E066  8D 06 20          sta $2006
+   72  03:E069  8D 06 20          sta $2006 
+   73  03:E06C            acsvram
+   74  03:E06C  AD 02 20          lda $2002
+   75  03:E06F  A0 00             ldy #$00
+   76  03:E071  B1 00             lda [tmp],y
+   77  03:E073  D0 B5             bne acsvram_main
+   78  03:E075  60                rts
+   79                     
+   80  03:E076            initvram
+   81  03:E076  AD 02 20          lda $2002
+   82  03:E079  AD 71 07          lda ppu1
+   83  03:E07C  09 10             ora #$10
+   84  03:E07E  29 F0             and #$F0
+   85  03:E080  20 B8 E0          jsr setppuctl
+   86  03:E083  A9 24             lda #$24
+   87  03:E085  20 8A E0          jsr .initnmtbl
+   88  03:E088  A9 20             lda #$20
+   89  03:E08A            .initnmtbl
+   90  03:E08A  8D 06 20          sta $2006
+   91  03:E08D  A9 00             lda #$00
+   92  03:E08F  8D 06 20          sta $2006
+   93  03:E092  A2 04             ldx #$04
+   94  03:E094  A0 C0             ldy #$C0
+   95  03:E096  A9 24             lda #$24
+   96  03:E098            .0
+   97  03:E098  8D 07 20          sta $2007
+   98  03:E09B  88                dey
+   99  03:E09C  D0 FA             bne .0
+  100  03:E09E  CA                dex
+  101  03:E09F  D0 F7             bne .0
+  102  03:E0A1  A0 3F             ldy #$3F
+  103  03:E0A3  8A                txa
+  104  03:E0A4            .1
+  105  03:E0A4  8D 07 20          sta $2007
+  106  03:E0A7  99 00 03          sta $0300,y
+  107  03:E0AA  88                dey
+  108  03:E0AB  10 F7             bpl .1
+  109  03:E0AD  85 0A             sta <hscr
+  110  03:E0AF  85 0B             sta <vscr
+  111  03:E0B1  8D 05 20          sta $2005
+  112  03:E0B4  8D 05 20          sta $2005
+  113  03:E0B7  60                rts
+  114                     
+  115  03:E0B8            setppuctl
+  116  03:E0B8  8D 00 20          sta $2000
+  117  03:E0BB  8D 71 07          sta ppu1
+  118  03:E0BE  60                rts
+  119                     
+  120  03:E0BF            initspr
+  121  03:E0BF  A9 F7             lda #$F7
+  122  03:E0C1  A9 00             lda #$00
+  123  03:E0C3  AA                tax
+  124  03:E0C4            .rep
+  125  03:E0C4  9D 00 02          sta $0200,x
+  126  03:E0C7  E8                inx
+  127  03:E0C8  E8                inx
+  128  03:E0C9  E8                inx
+  129  03:E0CA  E8                inx
+  130  03:E0CB  D0 F7             bne .rep
+  131  03:E0CD  60                rts
+  132                     
+  133                     
+  134                     
+  135  03:E0CE            indirjmp
+  136  03:E0CE  0A                asl a
+  137  03:E0CF  A8                tay
+  138  03:E0D0  68                pla
+  139  03:E0D1  85 04             sta <tmp+4
+  140  03:E0D3  68                pla
+  141  03:E0D4  85 05             sta <tmp+5 
+  142  03:E0D6  C8                iny
+  143  03:E0D7  B1 04             lda [tmp+4],y
+  144  03:E0D9  85 06             sta <tmp+6
+  145  03:E0DB  C8                iny
+  146  03:E0DC  B1 04             lda [tmp+4],y
+  147  03:E0DE  85 07             sta <tmp+7
+  148  03:E0E0  6C 06 00          jmp [tmp+6]
+  149                     
+  150  03:E0E3            getpad
+  151  03:E0E3  A5 0C             lda <pad
+  152  03:E0E5  85 0D             sta <pad_trg
+  153  03:E0E7  A2 01             ldx #$01
+  154  03:E0E9  8E 16 40          stx $4016
+  155  03:E0EC  CA                dex
+  156  03:E0ED  8E 16 40          stx $4016
+  157  03:E0F0  A0 08             ldy #$08
+  158  03:E0F2            .rep
+  159  03:E0F2  48                pha
+  160  03:E0F3  AD 16 40          lda $4016
+  161  03:E0F6  85 00             sta <tmp
+  162  03:E0F8  4A                lsr a
+  163  03:E0F9  05 00             ora <tmp
+  164  03:E0FB  4A                lsr a
+  165  03:E0FC  68                pla
+  166  03:E0FD  6A                ror a
+  167  03:E0FE  88                dey
+  168  03:E0FF  D0 F1             bne .rep
+  169  03:E101  85 0C             sta <pad
+  170  03:E103  45 0D             eor <pad_trg
+  171  03:E105  25 0C             and <pad
+  172  03:E107  85 0D             sta <pad_trg
+  173  03:E109  60                rts
+  174                     
+  175  03:E10A            getrnd
+  176  03:E10A  A2 00             ldx #$00
+  177  03:E10C  A0 07             ldy #$07
+  178  03:E10E  AD 73 07          lda rnd
+  179  03:E111  29 02             and #$02
+  180  03:E113  85 00             sta <tmp
+  181  03:E115  AD 74 07          lda rnd+1
+  182  03:E118  29 02             and #$02
+  183  03:E11A  45 00             eor <tmp
+  184  03:E11C  18                clc
+  185  03:E11D  F0 01             beq .loop
+  186  03:E11F  38                sec
+  187  03:E120            .loop
+  188  03:E120  7E 73 07          ror rnd,x
+  189  03:E123  E8                inx
+  190  03:E124  88                dey
+  191  03:E125  D0 F9             bne .loop
+  192  03:E127  60                rts
+  193                     
+  194                             
+#[1]   pr00.asm
+   44                             
+   45  03:E128            RESET
+   46  03:E128  78                sei
+   47  03:E129  D8                cld
+   48  03:E12A  A9 10             lda #$10
+   49  03:E12C  8D 00 20          sta $2000
+   50  03:E12F  A2 FF             ldx #$FF
+   51  03:E131  9A                txs
+   52                             
+   53  03:E132            .waitvsync
+   54  03:E132  AD 02 20          lda $2002
+   55  03:E135  10 FB             bpl .waitvsync
+   56  03:E137            .waitvsync2
+   57  03:E137  AD 02 20          lda $2002
+   58  03:E13A  10 FB             bpl .waitvsync2
+   59                             
+   60  03:E13C  A0 FF             ldy #$FF
+   61  03:E13E  20 07 E0          jsr initializer
+   62                             
+   63  03:E141  8D 11 40          sta $4011
+   64                     
+   65  03:E144  A9 FF             lda #$FF
+   66  03:E146  8D 17 40          sta $4017
+   67  03:E149  A9 00             lda #$00
+   68  03:E14B  8D 10 40          sta $4010
+   69                             
+   70  03:E14E  A9 A5             lda #$A5                ; seed of random value
+   71  03:E150  8D 73 07          sta rnd
+   72  03:E153  A9 0F             lda #$0F                ; SQ1, SQ2, TRI, NOI - enabled
+   73  03:E155  8D 15 40          sta $4015
+   74                     
+   75  03:E158  A9 01             lda #$01
+   76  03:E15A  8D 00 E0          sta $E000               ; disable MMC3 irq generating 
+   77                             
+   78  03:E15D  A9 06             lda #$06                ; Hide BG and Sprites
+   79  03:E15F  8D 01 20          sta $2001
+   80                             
+   81  03:E162  20 76 E0          jsr initvram
+   82  03:E165  20 BF E0          jsr initspr
+   83  03:E168  EE 70 07          inc fHideScreen
+   84                             
+   85  03:E16B  AD 71 07          lda ppu1
+   86  03:E16E  09 80             ora #$80
+   87  03:E170  8D 00 20          sta $2000
+   88                     
+   89  03:E173  58                cli
+   90                     
+   91  03:E174            InfiniteLoop
+   92  03:E174  4C 74 E1          jmp InfiniteLoop
+   93                             
+   94  03:E177            NMI
+   95                             
+   96  03:E177  40                rti
+   97                     
+   98  03:E178            IRQ
+   99  03:E178  40                rti
+  100                             
+  101           FFFA              .org $FFFA
+  102  03:FFFA  77 E1             .dw NMI
+  103  03:FFFC  28 E1             .dw RESET
+  104  03:FFFE  78 E1             .dw IRQ
+  105                             
+  106                             
+  107           0004              .bank PRGNUM*2
+  108           0000              .org $0000
+  109                             
+  110                             
+  111                             
